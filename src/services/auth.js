@@ -1,10 +1,7 @@
 // src/services/auth.js
 
 // Determine the API URL based on environment
-const API_BASE_URL = import.meta.env.MODE === 'production' 
-  ? 'https://mining-equipment-backend.onrender.com/' 
-  : ''; // Empty string means use relative path (will be proxied)
-
+const API_BASE_URL = 'https://econet-webstore-backend.onrender.com';
 const API_URL = `${API_BASE_URL}/api/auth`;
 
 

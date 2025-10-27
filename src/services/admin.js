@@ -1,8 +1,5 @@
 // src/services/admin.js
-const API_BASE_URL = import.meta.env.MODE === 'production' 
-  ? 'https://mining-equipment-backend.onrender.com' 
-  : '';
-
+const API_BASE_URL = 'https://econet-webstore-backend.onrender.com';
 const API_URL = `${API_BASE_URL}/api/admin`;
 
 const handleResponse = async (response) => {

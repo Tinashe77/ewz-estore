@@ -2,7 +2,7 @@ import { useEffect, useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { getOrderById, updateOrderStatus } from '../../services/orders';
-import { downloadInvoice, sendInvoice } from '../../services/invoices';
+// import { downloadInvoice, sendInvoice } from '../../services/invoices';
 
 const OrderDetailPage = () => {
   const { id } = useParams();
@@ -50,40 +50,40 @@ const OrderDetailPage = () => {
     }
   };
 
-  const handleDownloadInvoice = async () => {
-    try {
-      const blob = await downloadInvoice(token, id);
+  // const handleDownloadInvoice = async () => {
+  //   try {
+  //     const blob = await downloadInvoice(token, id);
       
-      if (blob) {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `invoice-${order.orderNumber}.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-      } else {
-        alert('Failed to generate invoice');
-      }
-    } catch (err) {
-      alert('Failed to download invoice: ' + err.message);
-    }
-  };
+  //     if (blob) {
+  //       const url = window.URL.createObjectURL(blob);
+  //       const a = document.createElement('a');
+  //       a.href = url;
+  //       a.download = `invoice-${order.orderNumber}.pdf`;
+  //       a.click();
+  //       window.URL.revokeObjectURL(url);
+  //     } else {
+  //       alert('Failed to generate invoice');
+  //     }
+  //   } catch (err) {
+  //     alert('Failed to download invoice: ' + err.message);
+  //   }
+  // };
 
-  const handleSendInvoice = async () => {
-    if (window.confirm('Send invoice to customer via email?')) {
-      try {
-        const response = await sendInvoice(token, id);
+  // const handleSendInvoice = async () => {
+  //   if (window.confirm('Send invoice to customer via email?')) {
+  //     try {
+  //       const response = await sendInvoice(token, id);
         
-        if (response.success !== false) {
-          alert('Invoice sent successfully');
-        } else {
-          alert('Failed to send invoice: ' + response.message);
-        }
-      } catch (err) {
-        alert('Failed to send invoice: ' + err.message);
-      }
-    }
-  };
+  //       if (response.success !== false) {
+  //         alert('Invoice sent successfully');
+  //       } else {
+  //         alert('Failed to send invoice: ' + response.message);
+  //       }
+  //     } catch (err) {
+  //       alert('Failed to send invoice: ' + err.message);
+  //     }
+  //   }
+  // };
 
   const handleUpdateChange = (e) => {
     const { name, value } = e.target;
@@ -174,7 +174,7 @@ const OrderDetailPage = () => {
         </div>
       </div>
       
-      <div className="flex gap-2 mb-6">
+      {/* <div className="flex gap-2 mb-6">
         <button
           onClick={handleDownloadInvoice}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
@@ -193,7 +193,7 @@ const OrderDetailPage = () => {
           </svg>
           Send Invoice
         </button>
-      </div>
+      </div> */}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Order Details */}
