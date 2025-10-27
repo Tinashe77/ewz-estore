@@ -23,7 +23,7 @@ export const getDashboardOverview = async (token) => {
       },
     });
     return await handleResponse(response);
-  } catch (error) => {
+  } catch (error) {
     return { success: false, message: error.message };
   }
 };
@@ -40,7 +40,7 @@ export const getAdminOrders = async (token, params = {}) => {
       },
     });
     return await handleResponse(response);
-  } catch (error) => {
+  } catch (error) {
     return { success: false, message: error.message };
   }
 };
@@ -56,7 +56,7 @@ export const getAdminOrderById = async (token, id) => {
       },
     });
     return await handleResponse(response);
-  } catch (error) => {
+  } catch (error) {
     return { success: false, message: error.message };
   }
 };
@@ -73,7 +73,7 @@ export const updateAdminOrder = async (token, id, updateData) => {
       body: JSON.stringify(updateData),
     });
     return await handleResponse(response);
-  } catch (error) => {
+  } catch (error) {
     return { success: false, message: error.message };
   }
 };
@@ -89,7 +89,7 @@ export const deleteAdminOrder = async (token, id) => {
       },
     });
     return await handleResponse(response);
-  } catch (error) => {
+  } catch (error) {
     return { success: false, message: error.message };
   }
 };
