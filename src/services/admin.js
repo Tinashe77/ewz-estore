@@ -1,8 +1,5 @@
 // src/services/admin.js
-const API_BASE_URL = import.meta.env.MODE === 'production' 
-  ? 'https://mining-equipment-backend.onrender.com' 
-  : '';
-
+const API_BASE_URL = 'https://econet-webstore-backend.onrender.com';
 const API_URL = `${API_BASE_URL}/api/admin`;
 
 const handleResponse = async (response) => {
@@ -15,10 +12,10 @@ const handleResponse = async (response) => {
   return data;
 };
 
-// Get admin dashboard statistics
-export const getDashboardStats = async (token, period = 30) => {
+// Get Dashboard Overview
+export const getDashboardOverview = async (token) => {
   try {
-    const response = await fetch(`${API_URL}/dashboard?period=${period}`, {
+    const response = await fetch(`${API_URL}/dashboard`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

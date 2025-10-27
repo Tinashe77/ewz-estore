@@ -1,11 +1,12 @@
 // src/services/users.js
-const API_BASE_URL = import.meta.env.MODE === 'production' 
-  ? 'https://mining-equipment-backend.onrender.com' 
-  : '';
-
-const API_URL = `${API_BASE_URL}/api/users`;
+const API_BASE_URL = 'https://econet-webstore-backend.onrender.com';
+const API_URL = `${API_BASE_URL}/api/admin/users`;
 
 const handleResponse = async (response) => {
+  if (response.status === 204) {
+    return { success: true };
+  }
+
   const data = await response.json();
   
   if (!response.ok) {
@@ -15,7 +16,7 @@ const handleResponse = async (response) => {
   return data;
 };
 
-// Get all users (Admin only)
+// Get all users
 export const getAllUsers = async (token, params = {}) => {
   try {
     const queryString = new URLSearchParams(params).toString();
@@ -32,10 +33,10 @@ export const getAllUsers = async (token, params = {}) => {
   }
 };
 
-// Get single user by ID (Admin only)
-export const getUserById = async (token, id) => {
+// Get single user by ID
+export const getUserById = async (token, userId) => {
   try {
-    const response = await fetch(`${API_URL}/${id}`, {
+    const response = await fetch(`${API_URL}/${userId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -48,16 +49,16 @@ export const getUserById = async (token, id) => {
   }
 };
 
-// Update user (Admin only)
-export const updateUser = async (token, id, userData) => {
+// Update User Status
+export const updateUserStatus = async (token, userId, status, reason = '') => {
   try {
-    const response = await fetch(`${API_URL}/${id}`, {
+    const response = await fetch(`${API_URL}/${userId}/status`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(userData),
+      body: JSON.stringify({ status, reason }),
     });
     return await handleResponse(response);
   } catch (error) {
@@ -65,15 +66,16 @@ export const updateUser = async (token, id, userData) => {
   }
 };
 
-// Delete user (Admin only)
-export const deleteUser = async (token, id) => {
+// Update User Role
+export const updateUserRole = async (token, userId, role) => {
   try {
-    const response = await fetch(`${API_URL}/${id}`, {
-      method: 'DELETE',
+    const response = await fetch(`${API_URL}/${userId}/role`, {
+      method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ role }),
     });
     return await handleResponse(response);
   } catch (error) {
@@ -81,31 +83,16 @@ export const deleteUser = async (token, id) => {
   }
 };
 
-// Toggle user status (Admin only)
-export const toggleUserStatus = async (token, id) => {
+// Create Admin/Staff User
+export const createAdminUser = async (token, userData) => {
   try {
-    const response = await fetch(`${API_URL}/${id}/toggle-status`, {
+    const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-    });
-    return await handleResponse(response);
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
-};
-
-// Get user statistics (Admin only)
-export const getUserStats = async (token) => {
-  try {
-    const response = await fetch(`${API_URL}/stats/overview`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      body: JSON.stringify(userData),
     });
     return await handleResponse(response);
   } catch (error) {

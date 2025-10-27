@@ -14,8 +14,7 @@ import OrdersPage from './components/dashboard/OrdersPage';
 import OrderDetailPage from './components/dashboard/OrderDetailPage';
 import UsersPage from './components/dashboard/UsersPage';
 import UserDetailPage from './components/dashboard/UserDetailPage';
-
-
+import CreateUserPage from './components/dashboard/CreateUserPage';
 
 const App = () => {
   return (
@@ -43,9 +42,8 @@ const App = () => {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="users" element={<UsersPage />} />
-        <Route path="users/:id" element={<UserDetailPage />} />
-
-
+        <Route path="users/create" element={<CreateUserPage />} />
+        <Route path="users/:userId" element={<UserDetailPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" />} />
