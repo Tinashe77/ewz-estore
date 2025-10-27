@@ -4,7 +4,6 @@
 const API_BASE_URL = 'https://econet-webstore-backend.onrender.com';
 const API_URL = `${API_BASE_URL}/api/auth`;
 
-
 const handleResponse = async (response) => {
   const data = await response.json();
   
@@ -39,7 +38,16 @@ export const login = async (userData) => {
       },
       body: JSON.stringify(userData),
     });
-    return await handleResponse(response);
+    
+    const data = await handleResponse(response);
+    
+    // Ensure we return the expected format
+    return {
+      success: data.success !== false,
+      token: data.token,
+      user: data.user,
+      message: data.message
+    };
   } catch (error) {
     return { success: false, message: error.message };
   }
