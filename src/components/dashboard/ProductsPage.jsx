@@ -1,7 +1,7 @@
 import { useEffect, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { getProducts, deleteProduct, bulkImportProducts, downloadSampleCSV, downloadUpdateSampleCSV } from '../../services/products';
+import { getProducts, deleteProduct } from '../../services/admin';
 import { getCategories } from '../../services/categories';
 
 const ProductsPage = () => {
@@ -75,7 +75,7 @@ const ProductsPage = () => {
         }
       });
 
-      const response = await getProducts(params);
+      const response = await getProducts(token, params);
       
       if (response.products) {
         setProducts(response.products);

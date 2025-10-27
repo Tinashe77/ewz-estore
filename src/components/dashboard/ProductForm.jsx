@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { createProduct, getProductById, updateProduct } from '../../services/products';
+import { createProduct, getProductById, updateProduct } from '../../services/admin';
 import { getCategories } from '../../services/categories';
 
 const ProductForm = () => {
@@ -53,7 +53,7 @@ const ProductForm = () => {
   const fetchProduct = async () => {
     setLoading(true);
     try {
-      const response = await getProductById(id);
+      const response = await getProductById(token, id);
       if (response._id) {
         setFormData({
           name: response.name || '',
@@ -140,16 +140,14 @@ const ProductForm = () => {
       }
     });
     
-    if (Object.keys(specsObject).length > 0) {
-      productData.append('specifications', JSON.stringify(specsObject));
-    }
+    const finalData = { ...formData, specifications: specsObject };
 
     try {
       let response;
       if (isEditMode) {
-        response = await updateProduct(token, id, productData);
+        response = await updateProduct(token, id, finalData);
       } else {
-        response = await createProduct(token, productData);
+        response = await createProduct(token, finalData);
       }
       
       if (response.success !== false) {
