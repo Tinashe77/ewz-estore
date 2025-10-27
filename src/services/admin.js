@@ -12,10 +12,10 @@ const handleResponse = async (response) => {
   return data;
 };
 
-// Get admin dashboard statistics
-export const getDashboardStats = async (token, period = 30) => {
+// Get Dashboard Overview
+export const getDashboardOverview = async (token) => {
   try {
-    const response = await fetch(`${API_URL}/dashboard?period=${period}`, {
+    const response = await fetch(`${API_URL}/dashboard`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -23,7 +23,7 @@ export const getDashboardStats = async (token, period = 30) => {
       },
     });
     return await handleResponse(response);
-  } catch (error) {
+  } catch (error) => {
     return { success: false, message: error.message };
   }
 };
@@ -40,7 +40,7 @@ export const getAdminOrders = async (token, params = {}) => {
       },
     });
     return await handleResponse(response);
-  } catch (error) {
+  } catch (error) => {
     return { success: false, message: error.message };
   }
 };
@@ -56,7 +56,7 @@ export const getAdminOrderById = async (token, id) => {
       },
     });
     return await handleResponse(response);
-  } catch (error) {
+  } catch (error) => {
     return { success: false, message: error.message };
   }
 };
@@ -73,7 +73,7 @@ export const updateAdminOrder = async (token, id, updateData) => {
       body: JSON.stringify(updateData),
     });
     return await handleResponse(response);
-  } catch (error) {
+  } catch (error) => {
     return { success: false, message: error.message };
   }
 };
@@ -89,7 +89,7 @@ export const deleteAdminOrder = async (token, id) => {
       },
     });
     return await handleResponse(response);
-  } catch (error) {
+  } catch (error) => {
     return { success: false, message: error.message };
   }
 };
