@@ -55,10 +55,13 @@ const DashboardHome = () => {
     }
   };
 
-  const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { 
-    style: 'currency', 
-    currency: 'USD' 
-  }).format(amount || 0);
+  const formatCurrency = (amount, currency) => {
+    const curr = currency || dashboardData?.summary?.currency || 'USD';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: curr
+    }).format(amount || 0);
+  };
 
   if (loading) {
     return (
@@ -127,15 +130,16 @@ const DashboardHome = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Total Revenue" 
-          value={formatCurrency(finalSummary.totalRevenue)} 
+        <StatCard
+          title="Total Revenue"
+          value={formatCurrency(finalSummary.totalRevenue, finalSummary.currency)}
+          detail={`Currency: ${finalSummary.currency || 'USD'}`}
           icon={
             <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-          } 
-          color={{bg: 'bg-blue-50', bgHover: 'bg-blue-100'}} 
+          }
+          color={{bg: 'bg-blue-50', bgHover: 'bg-blue-100'}}
         />
         
         <StatCard 
@@ -213,15 +217,21 @@ const DashboardHome = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Products</h3>
           {dashboardData?.topProducts?.length > 0 ? (
             <div className="space-y-3">
-              {dashboardData.topProducts.map((product, index) => (
-                <div key={product.productId || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <span className="w-8 h-8 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center text-sm font-semibold mr-3">
+              {dashboardData.topProducts.slice(0, 5).map((product, index) => (
+                <div key={product._id || product.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center flex-1 min-w-0">
+                    <span className="w-8 h-8 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center text-sm font-semibold mr-3 flex-shrink-0">
                       {index + 1}
                     </span>
-                    <p className="text-sm font-medium text-gray-700">{product.name}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                      <p className="text-xs text-gray-500">{formatCurrency(product.pricing?.sellingPrice, product.pricing?.currency)}</p>
+                    </div>
                   </div>
-                  <p className="text-sm font-semibold text-gray-900">{product.unitsSold} sold</p>
+                  <div className="text-right ml-3 flex-shrink-0">
+                    <p className="text-sm font-semibold text-indigo-600">{product.salesCount || 0} sold</p>
+                    <p className="text-xs text-gray-500">{product.inventory?.availableStock || 0} in stock</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -265,16 +275,21 @@ const DashboardHome = () => {
               </thead>
               <tbody>
                 {dashboardData.recentOrders.map((order) => (
-                  <tr key={order._id} className="bg-white border-b hover:bg-gray-50">
+                  <tr key={order._id || order.id} className="bg-white border-b hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium text-gray-900">
-                      {order.orderNumber || order._id?.substring(0, 8)}
+                      {order.orderNumber || order._id?.substring(0, 8) || 'N/A'}
                     </td>
-                    <td className="px-6 py-4">{order.customerInfo?.email || 'Unknown'}</td>
-                    <td className="px-6 py-4">{formatCurrency(order.total)}</td>
+                    <td className="px-6 py-4">
+                      {order.user?.email || order.customerInfo?.email || order.customer?.email || 'Unknown'}
+                    </td>
+                    <td className="px-6 py-4">
+                      {formatCurrency(order.pricing?.total || order.total || 0, order.pricing?.currency)}
+                    </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         order.status === 'completed' ? 'bg-green-100 text-green-800' :
                         order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
                         order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
@@ -282,11 +297,11 @@ const DashboardHome = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      {new Date(order.createdAt).toLocaleDateString()}
+                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="px-6 py-4">
-                      <Link 
-                        to={`/dashboard/orders/${order._id}`} 
+                      <Link
+                        to={`/dashboard/orders/${order._id || order.id}`}
                         className="font-medium text-indigo-600 hover:underline"
                       >
                         View

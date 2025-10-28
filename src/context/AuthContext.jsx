@@ -38,18 +38,45 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const response = await loginService(credentials);
-      
-      if (response.success && response.token) {
+
+      console.log('Login response:', response); // Debug log
+
+      if (response.success && response.token && response.user) {
+        // Store token first
+        localStorage.setItem('token', response.token);
+
+        // Update state
         setToken(response.token);
         setUser(response.user);
-        localStorage.setItem('token', response.token);
-        return { token: response.token, user: response.user };
+
+        return {
+          success: true,
+          token: response.token,
+          user: response.user
+        };
       } else {
-        return { message: response.message || 'Login failed' };
+        // Clear any existing auth data on failed login
+        localStorage.removeItem('token');
+        setToken(null);
+        setUser(null);
+
+        return {
+          success: false,
+          message: response.message || 'Login failed. Please check your credentials.'
+        };
       }
     } catch (error) {
-      console.error('Login error:', error);
-      return { message: error.message || 'Login failed' };
+      console.error('Login error in AuthContext:', error);
+
+      // Clear auth data on error
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+
+      return {
+        success: false,
+        message: error.message || 'An unexpected error occurred. Please try again.'
+      };
     }
   };
 

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/tinashe/Documents/ReactJS/Econet-shop/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

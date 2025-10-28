@@ -6,11 +6,11 @@ const API_URL = `${API_BASE_URL}/api/auth`;
 
 const handleResponse = async (response) => {
   const data = await response.json();
-  
+
   if (!response.ok) {
-    throw new Error(data.message || 'An error occurred');
+    throw new Error(data.message || data.error || 'An error occurred');
   }
-  
+
   return data;
 };
 
@@ -29,6 +29,8 @@ export const register = async (userData) => {
   }
 };
 
+// Admin login - uses the regular auth endpoint with admin credentials
+// API Response: { success: true, data: { user: {...}, accessToken: "...", refreshToken: "..." } }
 export const login = async (userData) => {
   try {
     const response = await fetch(`${API_URL}/login`, {
@@ -38,30 +40,48 @@ export const login = async (userData) => {
       },
       body: JSON.stringify(userData),
     });
-    
+
     const data = await handleResponse(response);
-    
+
+    // Extract user and token from the response
+    // API returns: { success: true, data: { user: {...}, accessToken: "..." } }
+    const user = data.data?.user;
+    const token = data.data?.accessToken;
+
     // Ensure we return the expected format
     return {
       success: data.success !== false,
-      token: data.token,
-      user: data.user,
+      token: token,
+      user: user,
       message: data.message
     };
   } catch (error) {
+    console.error('Login error:', error);
     return { success: false, message: error.message };
   }
 };
 
+// Get user profile - uses the /me endpoint
+// API Response: { success: true, data: { user: {...} } }
 export const getProfile = async (token) => {
   try {
     const response = await fetch(`${API_URL}/me`, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
-    return await handleResponse(response);
+
+    const data = await handleResponse(response);
+
+    // API returns: { success: true, data: { user: {...} } }
+    const user = data.data?.user || data.data;
+
+    return {
+      success: data.success !== false,
+      data: user
+    };
   } catch (error) {
+    console.error('Get profile error:', error);
     return { success: false, message: error.message };
   }
 };

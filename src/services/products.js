@@ -126,7 +126,7 @@ export const updateProduct = async (token, id, productData) => {
       productData.set('isActive', isActive === true || isActive === 'true' ? 'true' : 'false');
     }
 
-    const response = await fetch(`${API_URL}/${id}`, {
+    const response = await fetch(`${API_URL}/products/${id}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -157,28 +157,25 @@ export const deleteProduct = async (token, id) => {
 
 /**
  * Bulk import products from CSV file
+ * API Documentation: POST /admin/bulk-import/products/import
  * @param {string} token - Authentication token
  * @param {File} csvFile - CSV file to import
  * @param {Object} options - Import options
  * @param {boolean} options.updateExisting - Whether to update existing products (default: true)
- * @param {string} options.fieldsToUpdate - Comma-separated list of fields to update (default: 'all')
  * @returns {Promise<Object>} Import results
  */
 export const bulkImportProducts = async (token, csvFile, options = {}) => {
   try {
     const formData = new FormData();
-    formData.append('csv', csvFile); // Field name MUST be 'csv' per API docs
-    
-    // Add import options as per API documentation
+    formData.append('file', csvFile); // Field name is 'file' per API docs
+
+    // Add updateExisting option
     if (options.updateExisting !== undefined) {
       formData.append('updateExisting', options.updateExisting.toString());
     }
-    
-    if (options.fieldsToUpdate && options.fieldsToUpdate !== 'all') {
-      formData.append('fieldsToUpdate', options.fieldsToUpdate);
-    }
-    
-    const response = await fetch(`${API_URL}/bulk-import`, {
+
+    // Correct endpoint from API documentation
+    const response = await fetch(`${API_BASE_URL}/api/admin/bulk-import/products/import`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -187,7 +184,7 @@ export const bulkImportProducts = async (token, csvFile, options = {}) => {
       },
       body: formData,
     });
-    
+
     return await handleResponse(response);
   } catch (error) {
     return { success: false, message: error.message };
@@ -195,69 +192,76 @@ export const bulkImportProducts = async (token, csvFile, options = {}) => {
 };
 
 /**
- * Get import template information
- * Returns field definitions, validation rules, and examples
+ * Validate CSV before import (dry run)
+ * API Documentation: POST /admin/bulk-import/products/validate
  */
-export const getImportTemplate = async (token) => {
+export const validateProductCSV = async (token, csvFile, options = {}) => {
   try {
-    const response = await fetch(`${API_URL}/import/template`, {
-      method: 'GET',
+    const formData = new FormData();
+    formData.append('file', csvFile);
+
+    if (options.updateExisting !== undefined) {
+      formData.append('updateExisting', options.updateExisting.toString());
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/bulk-import/products/validate`, {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
+      body: formData,
     });
+
     return await handleResponse(response);
   } catch (error) {
-    console.error('Failed to get template info:', error);
     return { success: false, message: error.message };
   }
 };
 
 /**
- * Download full sample CSV for creating new products
- * Contains all fields with sample data
+ * Download product template CSV
+ * API Documentation: GET /admin/bulk-import/products/template
  */
 export const downloadSampleCSV = async (token) => {
   try {
-    const response = await fetch(`${API_URL}/import/sample`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/bulk-import/products/template`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
       },
     });
-    
+
     if (!response.ok) {
-      throw new Error('Failed to download sample CSV');
+      throw new Error('Failed to download product template');
     }
-    
+
     return await response.blob();
   } catch (error) {
-    console.error('Failed to download sample CSV:', error);
+    console.error('Failed to download product template:', error);
     return null;
   }
 };
 
 /**
- * Download update sample CSV
- * Contains only SKU and common update fields (stock, price, status)
+ * Download update sample CSV (using same template endpoint)
+ * Contains all fields - users can choose which to update
  */
 export const downloadUpdateSampleCSV = async (token) => {
   try {
-    const response = await fetch(`${API_URL}/import/sample-update`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/bulk-import/products/template`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
       },
     });
-    
+
     if (!response.ok) {
-      throw new Error('Failed to download update sample CSV');
+      throw new Error('Failed to download product template');
     }
-    
+
     return await response.blob();
   } catch (error) {
-    console.error('Failed to download update sample CSV:', error);
+    console.error('Failed to download product template:', error);
     return null;
   }
 };
