@@ -15,6 +15,8 @@ import OrderDetailPage from './components/dashboard/OrderDetailPage';
 import UsersPage from './components/dashboard/UsersPage';
 import UserDetailPage from './components/dashboard/UserDetailPage';
 import CreateUserPage from './components/dashboard/CreateUserPage';
+import ShopsPage from './components/dashboard/ShopsPage';
+import ShopForm from './components/dashboard/ShopForm';
 
 const App = () => {
   return (
@@ -44,6 +46,9 @@ const App = () => {
         <Route path="users" element={<UsersPage />} />
         <Route path="users/create" element={<CreateUserPage />} />
         <Route path="users/:userId" element={<UserDetailPage />} />
+        <Route path="shops" element={<ShopsPage />} />
+        <Route path="shops/new" element={<ShopForm />} />
+        <Route path="shops/edit/:id" element={<ShopForm />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" />} />
