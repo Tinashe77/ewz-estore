@@ -1,7 +1,8 @@
 import { useEffect, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { getProducts, deleteProduct, bulkImportProducts, downloadSampleCSV, downloadUpdateSampleCSV } from '../../services/products';
+import { getProducts, deleteProduct, bulkUpdateProducts } from '../../services/admin';
+import { bulkImportProducts, downloadSampleCSV, downloadUpdateSampleCSV } from '../../services/products';
 import { getCategories } from '../../services/categories';
 
 const ProductsPage = () => {
@@ -13,10 +14,15 @@ const ProductsPage = () => {
   const { token } = useContext(AuthContext);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Selection states for bulk delete
+  // Selection states for bulk operations
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
+  const [bulkUpdateData, setBulkUpdateData] = useState({
+    status: '',
+    featured: '',
+  });
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -61,7 +67,7 @@ const ProductsPage = () => {
   const fetchProducts = async (page = 1) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const params = {
         page,
@@ -75,15 +81,38 @@ const ProductsPage = () => {
         }
       });
 
-      const response = await getProducts(params);
-      
-      if (response.products) {
+      console.log('Fetching products with params:', params);
+      const response = await getProducts(token, params);
+      console.log('Products API response:', response);
+
+      // API returns: { success: true, data: [...] } - products are directly in data array
+      if (response.success && response.data) {
+        // Check if data is an array (products) or an object with products property
+        if (Array.isArray(response.data)) {
+          setProducts(response.data);
+          // Calculate pagination from array length
+          setPagination({
+            total: response.data.length,
+            page: page,
+            pages: Math.ceil(response.data.length / params.limit),
+            limit: params.limit
+          });
+        } else if (response.data.products) {
+          setProducts(response.data.products);
+          setPagination(response.data.pagination || {});
+        } else {
+          setProducts([]);
+          setError('No products found');
+        }
+      } else if (response.products) {
+        // Fallback for different response structure
         setProducts(response.products);
-        setPagination(response.pagination);
+        setPagination(response.pagination || {});
       } else {
-        setError('Failed to fetch products');
+        setError(response.message || 'Failed to fetch products');
       }
     } catch (err) {
+      console.error('Products fetch error:', err);
       setError('Failed to fetch products: ' + err.message);
     } finally {
       setLoading(false);
@@ -91,11 +120,13 @@ const ProductsPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
+    if (window.confirm('Are you sure you want to delete this product? (Product will be marked as inactive)')) {
       try {
-        const response = await deleteProduct(token, id);
-        
+        // Backend doesn't support DELETE yet, so we'll soft delete by updating status to inactive
+        const response = await updateProduct(token, id, { status: 'inactive' });
+
         if (response.success !== false) {
+          alert('Product marked as inactive successfully');
           fetchProducts(pagination.currentPage);
         } else {
           alert('Failed to delete product: ' + response.message);
@@ -133,7 +164,7 @@ const ProductsPage = () => {
     }
 
     const confirmMessage = `Are you sure you want to delete ${selectedProducts.length} product${selectedProducts.length > 1 ? 's' : ''}? This action cannot be undone.`;
-    
+
     if (!window.confirm(confirmMessage)) {
       return;
     }
@@ -176,7 +207,47 @@ const ProductsPage = () => {
     // Reset selection and refresh
     setSelectedProducts([]);
     setSelectAll(false);
-    fetchProducts(pagination.currentPage);
+    fetchProducts(pagination.currentPage || pagination.page);
+  };
+
+  const handleBulkUpdate = async () => {
+    if (selectedProducts.length === 0) {
+      alert('Please select products to update');
+      return;
+    }
+
+    // Build updates object (only include fields that have a value)
+    const updates = {};
+    if (bulkUpdateData.status) updates.status = bulkUpdateData.status;
+    if (bulkUpdateData.featured !== '') updates.featured = bulkUpdateData.featured === 'true';
+
+    if (Object.keys(updates).length === 0) {
+      alert('Please select at least one field to update');
+      return;
+    }
+
+    const confirmMessage = `Are you sure you want to update ${selectedProducts.length} product${selectedProducts.length > 1 ? 's' : ''}?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const response = await bulkUpdateProducts(token, selectedProducts, updates);
+
+      if (response.success) {
+        alert(`✓ Successfully updated ${response.data?.modifiedCount || selectedProducts.length} products!`);
+        setShowBulkUpdateModal(false);
+        setBulkUpdateData({ status: '', featured: '' });
+        setSelectedProducts([]);
+        setSelectAll(false);
+        fetchProducts(pagination.currentPage || pagination.page);
+      } else {
+        alert(`Failed to update products: ${response.message}`);
+      }
+    } catch (error) {
+      alert(`Error updating products: ${error.message}`);
+    }
   };
 
   const handlePageChange = (page) => {
@@ -353,28 +424,39 @@ const ProductsPage = () => {
               Clear selection
             </button>
           </div>
-          <button
-            onClick={handleBulkDelete}
-            disabled={deleting}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {deleting ? (
-              <>
-                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Deleting...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete Selected
-              </>
-            )}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowBulkUpdateModal(true)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Bulk Update
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={deleting}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {deleting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete Selected
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
@@ -513,9 +595,12 @@ const ProductsPage = () => {
         </div>
       )}
 
-      {pagination.totalProducts !== undefined && (
+      {(pagination.total !== undefined || pagination.totalProducts !== undefined) && (
         <div className="mb-4 text-gray-600">
-          Showing {products.length} of {pagination.totalProducts} products
+          Showing {products.length} of {pagination.total || pagination.totalProducts} products
+          {pagination.page && pagination.pages && (
+            <span className="ml-2">(Page {pagination.page} of {pagination.pages})</span>
+          )}
         </div>
       )}
 
@@ -556,14 +641,14 @@ const ProductsPage = () => {
                   </td>
                   <td className="py-3 px-6">
                     <img
-                      src={product.images?.[0] || '/placeholder-product.png'}
+                      src={product.images?.[0]?.url || product.images?.[0] || '/placeholder-product.png'}
                       alt={product.name}
                       className="w-12 h-12 object-cover rounded"
                     />
                   </td>
                   <td className="py-3 px-6 text-left">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium whitespace-nowrap">{product.name}</span>
+                      <span className="font-medium">{product.name}</span>
                       {product.featured && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full">
                           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -573,23 +658,50 @@ const ProductsPage = () => {
                         </span>
                       )}
                     </div>
+                    <div className="text-xs text-gray-500 mt-1">{product.shortDescription}</div>
                   </td>
-                  <td className="py-3 px-6 text-left">{product.sku}</td>
-                  <td className="py-3 px-6 text-left">{product.category?.name || 'N/A'}</td>
+                  <td className="py-3 px-6 text-left">
+                    <span className="font-mono text-xs">{product.sku}</span>
+                  </td>
+                  <td className="py-3 px-6 text-left">
+                    <span className="text-sm">{product.category || 'N/A'}</span>
+                    {product.subCategory && (
+                      <div className="text-xs text-gray-500">{product.subCategory}</div>
+                    )}
+                  </td>
                   <td className="py-3 px-6 text-center">
-                    ${product.price.toFixed(2)}
-                    {product.salePrice && (
+                    <div className="font-semibold">
+                      ${(product.pricing?.sellingPrice || product.price || 0).toFixed(2)}
+                    </div>
+                    {product.pricing?.costPrice && (
+                      <div className="text-xs text-gray-500">
+                        Cost: ${product.pricing.costPrice.toFixed(2)}
+                      </div>
+                    )}
+                    {product.discountedPrice && product.discountedPrice < (product.pricing?.sellingPrice || product.price) && (
                       <div className="text-xs text-green-600">
-                        Sale: ${product.salePrice.toFixed(2)}
+                        Sale: ${product.discountedPrice.toFixed(2)}
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-6 text-center">{product.stockQuantity}</td>
                   <td className="py-3 px-6 text-center">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    <div className="font-semibold">
+                      {product.inventory?.availableStock ?? product.inventory?.totalStock ?? product.stockQuantity ?? 0}
+                    </div>
+                    {product.inventory?.lowStockThreshold &&
+                     (product.inventory?.availableStock ?? 0) <= product.inventory.lowStockThreshold && (
+                      <div className="text-xs text-orange-600">Low Stock</div>
+                    )}
+                  </td>
+                  <td className="py-3 px-6 text-center">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      product.status === 'active' || product.stockStatus === 'in_stock' || product.inStock
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
                     }`}>
-                      {product.inStock ? 'In Stock' : 'Out of Stock'}
+                      {product.status === 'active' ? 'Active' :
+                       product.stockStatus === 'in_stock' ? 'In Stock' :
+                       product.inStock ? 'In Stock' : 'Out of Stock'}
                     </span>
                   </td>
                   <td className="py-3 px-6 text-center">
@@ -833,6 +945,69 @@ const ProductsPage = () => {
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Update Modal */}
+      {showBulkUpdateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4">Bulk Update Products</h2>
+
+            <p className="text-gray-600 mb-6">
+              Update {selectedProducts.length} selected product{selectedProducts.length > 1 ? 's' : ''}
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status
+                </label>
+                <select
+                  value={bulkUpdateData.status}
+                  onChange={(e) => setBulkUpdateData(prev => ({ ...prev, status: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">No change</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Featured
+                </label>
+                <select
+                  value={bulkUpdateData.featured}
+                  onChange={(e) => setBulkUpdateData(prev => ({ ...prev, featured: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">No change</option>
+                  <option value="true">Yes (Featured)</option>
+                  <option value="false">No (Not Featured)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleBulkUpdate}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                Update Products
+              </button>
+              <button
+                onClick={() => {
+                  setShowBulkUpdateModal(false);
+                  setBulkUpdateData({ status: '', featured: '' });
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
               </button>
             </div>
           </div>

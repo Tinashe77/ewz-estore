@@ -22,22 +22,32 @@ const Login = () => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-    
+
     try {
+      console.log('Attempting login with:', { email: formData.email });
       const response = await login(formData);
-      
+
+      console.log('Login response in component:', response);
+
       // Check if login was successful
-      if (response.token && response.user) {
+      if (response.success && response.token && response.user) {
+        console.log('Login successful, redirecting to dashboard...');
+
         // Redirect to intended page or dashboard
         const from = location.state?.from?.pathname || '/dashboard';
-        navigate(from, { replace: true });
+
+        // Use setTimeout to ensure state updates before navigation
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 100);
       } else {
         // Handle login failure
+        console.error('Login failed:', response.message);
         setError(response.message || 'Login failed. Please check your credentials.');
       }
     } catch (error) {
-      console.error('Login error:', error);
-      setError('An unexpected error occurred. Please try again.');
+      console.error('Login error in component:', error);
+      setError(error.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

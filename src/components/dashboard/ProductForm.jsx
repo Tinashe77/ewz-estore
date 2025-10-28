@@ -1,7 +1,8 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { createProduct, getProductById, updateProduct } from '../../services/products';
+import { createProduct, updateProduct } from '../../services/admin';
+import { getProductById } from '../../services/products';
 import { getCategories } from '../../services/categories';
 
 const ProductForm = () => {
@@ -53,35 +54,66 @@ const ProductForm = () => {
   const fetchProduct = async () => {
     setLoading(true);
     try {
+      console.log('Fetching product with ID:', id);
+
+      // Use public API to fetch product (no token needed)
       const response = await getProductById(id);
-      if (response._id) {
+      console.log('Product response:', response);
+
+      // Handle different response formats
+      let product = null;
+
+      if (response.success === false) {
+        // API returned an error
+        throw new Error(response.message || 'Product not found');
+      }
+
+      // Public API returns: { success: true, data: { product: {...} } }
+      if (response.success && response.data) {
+        // Standard API response
+        product = response.data.product || response.data;
+      } else if (response._id) {
+        // Direct product object
+        product = response;
+      }
+
+      console.log('Extracted product:', product);
+
+      if (product && product._id) {
         setFormData({
-          name: response.name || '',
-          description: response.description || '',
-          shortDescription: response.shortDescription || '',
-          price: response.price || '',
-          salePrice: response.salePrice || '',
-          sku: response.sku || '',
-          category: response.category?._id || '',
-          stockQuantity: response.stockQuantity || '',
-          weight: response.weight || '',
-          tags: response.tags?.join(', ') || '',
-          featured: response.featured || false,
-          isActive: response.isActive !== undefined ? response.isActive : true,
+          name: product.name || '',
+          description: product.description || '',
+          shortDescription: product.shortDescription || '',
+          price: product.pricing?.sellingPrice || '',
+          salePrice: product.pricing?.costPrice || '',
+          sku: product.sku || '',
+          category: product.category?._id || product.category || '',
+          stockQuantity: product.inventory?.totalStock || product.inventory?.availableStock || '',
+          weight: typeof product.weight === 'object' ? product.weight.value : product.weight || '',
+          tags: Array.isArray(product.tags) ? product.tags.join(', ') : '',
+          featured: product.featured || false,
+          isActive: product.status === 'active',
         });
-        setExistingImages(response.images || []);
-        
+
+        // Handle images - they come as array of objects with url property
+        const imageUrls = product.images?.map(img => typeof img === 'string' ? img : img.url) || [];
+        setExistingImages(imageUrls);
+
         // Convert specifications object to array
-        if (response.specifications) {
-          const specsArray = Object.entries(response.specifications).map(([key, value]) => ({
+        if (product.specifications) {
+          const specsArray = Object.entries(product.specifications).map(([key, value]) => ({
             key,
             value: value.toString(),
           }));
           setSpecifications(specsArray.length > 0 ? specsArray : [{ key: '', value: '' }]);
         }
+      } else {
+        console.error('Product not found in response. Response structure:', response);
+        setError('Product not found. Please check if the product ID is correct.');
       }
     } catch (err) {
-      setError('Failed to fetch product data.');
+      console.error('Failed to fetch product:', err);
+      setError('Failed to fetch product: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -118,47 +150,98 @@ const ProductForm = () => {
     setLoading(true);
     setError(null);
 
-    const productData = new FormData();
-    
-    // Append form fields
-    Object.keys(formData).forEach((key) => {
-      if (formData[key] !== '' && formData[key] !== null && formData[key] !== undefined) {
-        productData.append(key, formData[key]);
-      }
-    });
-    
-    // Append images
-    images.forEach((image) => {
-      productData.append('images', image);
-    });
-    
-    // Convert specifications array to object
-    const specsObject = {};
-    specifications.forEach(spec => {
-      if (spec.key && spec.value) {
-        specsObject[spec.key] = spec.value;
-      }
-    });
-    
-    if (Object.keys(specsObject).length > 0) {
-      productData.append('specifications', JSON.stringify(specsObject));
-    }
-
     try {
       let response;
-      if (isEditMode) {
-        response = await updateProduct(token, id, productData);
-      } else {
-        response = await createProduct(token, productData);
+
+      console.log('Submitting product...', { isEditMode, productId: id, hasNewImages: images.length > 0 });
+
+      // Convert specifications array to object
+      const specsObject = {};
+      specifications.forEach(spec => {
+        if (spec.key && spec.value) {
+          specsObject[spec.key] = spec.value;
+        }
+      });
+
+      // Format data according to API expectations
+      const apiData = {
+        sku: formData.sku,
+        name: formData.name,
+        description: formData.description,
+        shortDescription: formData.shortDescription,
+        category: formData.category,
+        specifications: specsObject,
+        pricing: {
+          costPrice: parseFloat(formData.salePrice) || 0,
+          sellingPrice: parseFloat(formData.price) || 0,
+          currency: 'USD'
+        },
+        weight: parseFloat(formData.weight) || 0,
+        featured: formData.featured,
+        status: formData.isActive ? 'active' : 'inactive'
+      };
+
+      // Add tags if present
+      if (formData.tags) {
+        apiData.tags = formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
       }
-      
+
+      // Add stock quantity if present
+      if (formData.stockQuantity) {
+        apiData.inventory = {
+          totalStock: parseInt(formData.stockQuantity) || 0,
+          availableStock: parseInt(formData.stockQuantity) || 0
+        };
+      }
+
+      console.log('Formatted API data:', apiData);
+
+      // If we have new images, use FormData for multipart upload
+      if (images.length > 0) {
+        console.log('Using FormData with', images.length, 'images');
+        const productData = new FormData();
+
+        // Append all fields as JSON string (for nested objects)
+        productData.append('data', JSON.stringify(apiData));
+
+        // Append images
+        images.forEach((image) => {
+          productData.append('images', image);
+        });
+
+        if (isEditMode) {
+          console.log('Updating product with ID:', id);
+          response = await updateProduct(token, id, productData);
+        } else {
+          console.log('Creating new product');
+          response = await createProduct(token, productData);
+        }
+      } else {
+        console.log('Using JSON (no new images)');
+        console.log('Sending JSON data:', apiData);
+
+        if (isEditMode) {
+          console.log('Updating product with ID:', id);
+          response = await updateProduct(token, id, apiData);
+        } else {
+          console.log('Creating new product');
+          response = await createProduct(token, apiData);
+        }
+      }
+
+      console.log('API response:', response);
+
       if (response.success !== false) {
+        console.log('Product saved successfully, navigating to products page');
         navigate('/dashboard/products');
       } else {
-        setError(response.message || 'Failed to save product');
+        const errorMsg = response.message || 'Failed to save product';
+        console.error('Save failed:', errorMsg);
+        setError(errorMsg);
       }
     } catch (err) {
-      setError('Failed to save product. Please check your input.');
+      console.error('Submit error:', err);
+      setError('Failed to save product: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -301,7 +384,7 @@ const ProductForm = () => {
               name="tags"
               value={formData.tags}
               onChange={handleChange}
-              placeholder="mining, equipment, heavy-duty"
+              placeholder="nokia, smartphone, budget"
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -376,7 +459,7 @@ const ProductForm = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Value (e.g., Caterpillar)"
+                  placeholder="Value (e.g., Nokia)"
                   value={spec.value}
                   onChange={(e) => handleSpecificationChange(index, 'value', e.target.value)}
                   className="flex-1 px-3 py-2 border rounded-lg"
